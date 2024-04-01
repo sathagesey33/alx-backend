@@ -1,32 +1,17 @@
 #!/usr/bin/env python3
-"""
-Pagination methods for a server class.
+"""Task 2: Hypermedia pagination
 """
 
 import csv
 import math
-from typing import List, Dict, Union, Optional
+from typing import Dict, List, Tuple
 
 
-def index_range(page: int, page_size: int) -> tuple[int, int]:
+def index_range(page: int, page_size: int) -> Tuple[int, int]:
+    """Retrieves the index range from a given page and page size.
     """
-    Return a tuple of start index and end index for pagination.
 
-    Args:
-        page (int): The current page number (1-indexed).
-        page_size (int): The number of items per page.
-
-    Returns:
-        Tuple[int, int]: A tuple containing the start index and end index
-        for the given page and page size.
-    """
-    if page < 1 or page_size < 1:
-        raise ValueError("Page and page_size must be positive integers.")
-
-    start_index = (page - 1) * page_size
-    end_index = start_index + page_size
-
-    return start_index, end_index
+    return ((page - 1) * page_size, ((page - 1) * page_size) + page_size)
 
 
 class Server:
@@ -49,69 +34,27 @@ class Server:
         return self.__dataset
 
     def get_page(self, page: int = 1, page_size: int = 10) -> List[List]:
+        """Retrieves a page of data.
         """
-        Return a specific page of the dataset based on pagination parameters.
+        assert type(page) == int and type(page_size) == int
+        assert page > 0 and page_size > 0
+        start, end = index_range(page, page_size)
+        data = self.dataset()
+        if start > len(data):
+            return []
+        return data[start:end]
 
-        Args:
-            page (int): The page number to retrieve (1-indexed).
-            page_size (int): The number of items per page.
-
-        Returns:
-            List[List]: A list of rows representing the requested page
-            from the dataset.
-        """
-        assert (
-            isinstance(page, int) and
-            page > 0
-        ), "Page must be a positive integer."
-
-        assert (
-            isinstance(page_size, int) and
-            page_size > 0
-        ), "Page size must be a positive integer."
-
-        start_index, end_index = index_range(page, page_size)
-        dataset = self.dataset()
-        return dataset[start_index:end_index]
-
-    def get_hyper(
-        self,
-        page: int = 1,
-        page_size: int = 10
-     )    -> Dict[str, Union[int, List[List], Optional[int]]]:
-        """
-        Return hypermedia information for pagination.
-
-        Args:
-            page (int): The current page number (1-indexed).
-            page_size (int): The number of items per page.
-
-        Returns:
-            Dict[str, Union[int, List[List], Optional[int]]]:
-            A dictionary containing hypermedia information.
+    def get_hyper(self, page: int = 1, page_size: int = 10) -> Dict:
+        """Retrieves information about a page.
         """
         data = self.get_page(page, page_size)
-        total_pages = math.ceil(len(self.dataset()) / page_size)
-        next_page = page + 1 if page < total_pages else None
-        prev_page = page - 1 if page > 1 else None
-
+        start, end = index_range(page, page_size)
+        total_pages = math.ceil(len(self.__dataset) / page_size)
         return {
-            "page_size": len(data),
-            "page": page,
-            "data": data,
-            "next_page": next_page,
-            "prev_page": prev_page,
-            "total_pages": total_pages
+            'page_size': len(data),
+            'page': page,
+            'data': data,
+            'next_page': page + 1 if end < len(self.__dataset) else None,
+            'prev_page': page - 1 if start > 0 else None,
+            'total_pages': total_pages
         }
-
-
-if __name__ == "__main__":
-    # Example usage
-    server = Server()
-    print(server.get_hyper(1, 2))
-    print("---")
-    print(server.get_hyper(2, 2))
-    print("---")
-    print(server.get_hyper(100, 3))
-    print("---")
-    print(server.get_hyper(3000, 100))
